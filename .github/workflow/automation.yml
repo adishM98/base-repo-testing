@@ -23,7 +23,7 @@ jobs:
             echo "No open ee-server PR for branch $BRANCH_NAME"
           fi
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN_PR }}
+          GH_TOKEN: ${{ secrets.TOKEN_PR }}
 
       - name: Merge PR in ee-frontend (if exists)
         run: |
@@ -35,4 +35,4 @@ jobs:
             echo "No open ee-frontend PR for branch $BRANCH_NAME"
           fi
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN_PR }}
+          GH_TOKEN: ${{ secrets.TOKEN_PR }}
