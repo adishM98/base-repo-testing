@@ -1,6 +1,6 @@
 [submodule "server/ee"]
 	path = server/ee
-	url = hthttps://github.com/adishM98/server-ee-testing.git
+	url = https://github.com/adishM98/server-ee-testing.git
 	branch = main
 [submodule "frontend/ee"]
 	path = frontend/ee
