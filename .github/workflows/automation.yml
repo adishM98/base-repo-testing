@@ -47,26 +47,26 @@ jobs:
 
       - name: Check and Comment Linked Submodule PRs
         run: |
-          COMMENT_BODY="🔍 Checking linked submodule PRs for \`$BRANCH_NAME\`:\n\n"
+          echo "🔍 Checking linked submodule PRs for \`$BRANCH_NAME\`:" > comment.md
+          echo "" >> comment.md
 
-          SERVER_PR=$(gh pr list -R adishM98/server-ee-testing --head "$BRANCH_NAME" --state open --json number,url -q '.[0]')
-          FRONTEND_PR=$(gh pr list -R adishM98/frontend-ee-testing --head "$BRANCH_NAME" --state open --json number,url -q '.[0]')
+          SERVER_URL=$(gh pr list -R adishM98/server-ee-testing --head "$BRANCH_NAME" --state open --json url -q '.[0].url')
+          FRONTEND_URL=$(gh pr list -R adishM98/frontend-ee-testing --head "$BRANCH_NAME" --state open --json url -q '.[0].url')
 
-          if [ -n "$SERVER_PR" ]; then
-            SERVER_URL=$(gh pr list -R adishM98/server-ee-testing --head "$BRANCH_NAME" --state open --json url -q '.[0].url')
-            COMMENT_BODY+="✅ [ee-server PR]($SERVER_URL)\n"
+          if [ -n "$SERVER_URL" ]; then
+            echo "✅ [ee-server PR]($SERVER_URL)" >> comment.md
           else
-            COMMENT_BODY+="❌ No open PR in ee-server\n"
+            echo "❌ No open PR in ee-server" >> comment.md
           fi
 
-          if [ -n "$FRONTEND_PR" ]; then
-            FRONTEND_URL=$(gh pr list -R adishM98/frontend-ee-testing --head "$BRANCH_NAME" --state open --json url -q '.[0].url')
-            COMMENT_BODY+="✅ [ee-frontend PR]($FRONTEND_URL)\n"
+          if [ -n "$FRONTEND_URL" ]; then
+            echo "✅ [ee-frontend PR]($FRONTEND_URL)" >> comment.md
           else
-            COMMENT_BODY+="❌ No open PR in ee-frontend\n"
+            echo "❌ No open PR in ee-frontend" >> comment.md
           fi
 
-          gh pr comment "$PR_NUMBER" --repo adishM98/base-repo-testing --body "$COMMENT_BODY"
+          gh pr comment "$PR_NUMBER" --repo adishM98/base-repo-testing --body-file comment.md
+
         env:
           GH_TOKEN: ${{ secrets.TOKEN_PR }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
