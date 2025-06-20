@@ -2,7 +2,7 @@ name: Merge Submodule PRs
 
 on:
   pull_request:
-    types: [closed]
+    types: [closed, labeled] 
 
 jobs:
   merge-submodules:
@@ -36,3 +36,37 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.TOKEN_PR }}
+
+  check-submodule-prs:
+    if: github.event.action == 'labeled' && github.event.label.name == 'pr-ready-merge'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Extract Branch Name
+        run: echo "BRANCH_NAME=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+
+      - name: Check and Comment Linked Submodule PRs
+        run: |
+          COMMENT_BODY="🔍 Checking linked submodule PRs for \`$BRANCH_NAME\`:\n\n"
+
+          SERVER_PR=$(gh pr list -R adishM98/server-ee-testing --head "$BRANCH_NAME" --state open --json number,url -q '.[0]')
+          FRONTEND_PR=$(gh pr list -R adishM98/frontend-ee-testing --head "$BRANCH_NAME" --state open --json number,url -q '.[0]')
+
+          if [ -n "$SERVER_PR" ]; then
+            SERVER_URL=$(gh pr list -R adishM98/server-ee-testing --head "$BRANCH_NAME" --state open --json url -q '.[0].url')
+            COMMENT_BODY+="✅ [ee-server PR]($SERVER_URL)\n"
+          else
+            COMMENT_BODY+="❌ No open PR in ee-server\n"
+          fi
+
+          if [ -n "$FRONTEND_PR" ]; then
+            FRONTEND_URL=$(gh pr list -R adishM98/frontend-ee-testing --head "$BRANCH_NAME" --state open --json url -q '.[0].url')
+            COMMENT_BODY+="✅ [ee-frontend PR]($FRONTEND_URL)\n"
+          else
+            COMMENT_BODY+="❌ No open PR in ee-frontend\n"
+          fi
+
+          gh pr comment "$PR_NUMBER" --repo ToolJet/ToolJet --body "$COMMENT_BODY"
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN_PR }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
