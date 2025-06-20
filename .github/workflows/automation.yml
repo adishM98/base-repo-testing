@@ -54,13 +54,13 @@ jobs:
           FRONTEND_URL=$(gh pr list -R adishM98/frontend-ee-testing --head "$BRANCH_NAME" --state open --json url -q '.[0].url')
 
           if [ -n "$SERVER_URL" ]; then
-            echo "✅ [ee-server PR]($SERVER_URL)" >> comment.md
+            echo "✅ ee-server PR - $SERVER_URL" >> comment.md
           else
             echo "❌ No open PR in ee-server" >> comment.md
           fi
 
           if [ -n "$FRONTEND_URL" ]; then
-            echo "✅ [ee-frontend PR]($FRONTEND_URL)" >> comment.md
+            echo "✅ ee-frontend PR - $FRONTEND_URL" >> comment.md
           else
             echo "❌ No open PR in ee-frontend" >> comment.md
           fi
