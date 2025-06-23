@@ -49,17 +49,17 @@ jobs:
           repository: adishM98/base-repo-testing
           token: ${{ secrets.TOKEN_PR }}
           ref: main
-          submodules: true
+          submodules: recursive
 
       - name: Update submodules to latest main
         run: |
           git config user.name "adishM98 Bot"
           git config user.email "adish.madhu@gmail.com"
 
-          git submodule update --remote adishM98/server-ee-testing
-          git submodule update --remote adishM98/frontend-ee-testing
+          git submodule update --remote frontend/ee
+          git submodule update --remote server/ee
 
-          git add adishM98/server-ee-testing adishM98/frontend-ee-testing
+          git add frontend/ee server/ee
 
           if git diff --cached --quiet; then
             echo "No submodule updates found."
