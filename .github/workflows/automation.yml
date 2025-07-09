@@ -13,26 +13,26 @@ jobs:
       - name: Extract Branch Name
         run: echo "BRANCH_NAME=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
 
-      - name: Merge PR in ee-server (if exists)
+      - name: Merge PR in adishm98/server-ee-testing (if exists)
         run: |
-          PR=$(gh pr list -R ToolJet/ee-server --head "$BRANCH_NAME" --state open --json number -q '.[0].number')
+          PR=$(gh pr list -R adishm98/server-ee-testing --head "$BRANCH_NAME" --state open --json number -q '.[0].number')
           if [ -n "$PR" ]; then
             echo "Found ee-server PR: #$PR"
-            gh pr merge -R ToolJet/ee-server "$PR" --merge --admin
+            gh pr merge -R adishm98/server-ee-testing "$PR" --merge --admin
           else
-            echo "No open ee-server PR for branch $BRANCH_NAME"
+            echo "No open adishm98/server-ee-testing PR for branch $BRANCH_NAME"
           fi
         env:
           GH_TOKEN: ${{ secrets.TOKEN_PR }}
 
-      - name: Merge PR in ee-frontend (if exists)
+      - name: Merge PR in adishm98/frontend-ee-testing (if exists)
         run: |
-          PR=$(gh pr list -R ToolJet/ee-frontend --head "$BRANCH_NAME" --state open --json number -q '.[0].number')
+          PR=$(gh pr list -R adishm98/frontend-ee-testing --head "$BRANCH_NAME" --state open --json number -q '.[0].number')
           if [ -n "$PR" ]; then
-            echo "Found ee-frontend PR: #$PR"
-            gh pr merge -R ToolJet/ee-frontend "$PR" --merge --admin
+            echo "Found adishm98/frontend-ee-testing PR: #$PR"
+            gh pr merge -R adishm98/frontend-ee-testing "$PR" --merge --admin
           else
-            echo "No open ee-frontend PR for branch $BRANCH_NAME"
+            echo "No open adishm98/frontend-ee-testing PR for branch $BRANCH_NAME"
           fi
         env:
           GH_TOKEN: ${{ secrets.TOKEN_PR }}
@@ -81,7 +81,7 @@ jobs:
         if: steps.cpr.outputs.pull-request-number != ''
         run: |
           echo "Merging submodule update PR #${PR_NUMBER}"
-          gh pr merge --squash --admin "$PR_NUMBER" --repo ToolJet/ToolJet
+          gh pr merge --squash --admin "$PR_NUMBER" --repo adishm98/base-repo-testing
         env:
           GH_TOKEN: ${{ secrets.TOKEN_PR }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
@@ -99,8 +99,8 @@ jobs:
           echo "🔍 Checking linked submodule PRs for \`$BRANCH_NAME\`:" > comment.md
           echo "" >> comment.md
 
-          SERVER_URL=$(gh pr list -R ToolJet/ee-server --head "$BRANCH_NAME" --state open --json url -q '.[0].url')
-          FRONTEND_URL=$(gh pr list -R ToolJet/ee-frontend --head "$BRANCH_NAME" --state open --json url -q '.[0].url')
+          SERVER_URL=$(gh pr list -R adishm98/server-ee-testing --head "$BRANCH_NAME" --state open --json url -q '.[0].url')
+          FRONTEND_URL=$(gh pr list -R adishm98/frontend-ee-testing --head "$BRANCH_NAME" --state open --json url -q '.[0].url')
 
           if [ -n "$SERVER_URL" ]; then
             echo "✅ ee-server PR - $SERVER_URL" >> comment.md
@@ -117,7 +117,7 @@ jobs:
           echo "" >> comment.md
           echo "📝 **Note**: The submodule PRs will be auto-merged once you merge this base PR-$PR_NUMBER into \`main\`." >> comment.md
 
-          gh pr comment "$PR_NUMBER" --repo ToolJet/ToolJet --body-file comment.md
+          gh pr comment "$PR_NUMBER" --repo adishm98/base-repo-testing --body-file comment.md
         env:
           GH_TOKEN: ${{ secrets.TOKEN_PR }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
