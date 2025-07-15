@@ -1,0 +1,886 @@
+openapi: 3.0.3
+info:
+  title: EasyPost API
+  description: |
+    The EasyPost API provides a simple and powerful interface to multiple shipping carriers.
+    
+    ## Authentication
+    All requests require an API key passed as HTTP Basic Auth with the API key as the username and no password.
+    
+    ## Test vs Production
+    - Test API keys start with `EZTEST_`
+    - Production API keys start with `EZPROD_`
+    
+    ## Rate Limits
+    Rate limits vary by plan. Check response headers for current limits.
+    
+    ## Webhook Events
+    EasyPost can send webhook notifications for various events like tracking updates, batch completion, etc.
+    
+    For more information, visit: https://www.easypost.com/docs/api
+  version: 2.0.0
+  contact:
+    name: EasyPost Support
+    url: https://www.easypost.com/support
+  license:
+    name: EasyPost Terms of Service
+    url: https://www.easypost.com/terms
+
+servers:
+  - url: https://api.easypost.com
+    description: Production server
+
+security:
+  - BasicAuth: []
+
+paths:
+  /v2/addresses:
+    get:
+      summary: List addresses
+      description: Retrieve a list of addresses
+      operationId: listAddresses
+      parameters:
+        - name: before_id
+          in: query
+          description: Get objects created before this ID
+          schema:
+            type: string
+        - name: after_id
+          in: query
+          description: Get objects created after this ID
+          schema:
+            type: string
+        - name: start_datetime
+          in: query
+          description: Filter objects created after this datetime
+          schema:
+            type: string
+            format: date-time
+        - name: end_datetime
+          in: query
+          description: Filter objects created before this datetime
+          schema:
+            type: string
+            format: date-time
+        - name: page_size
+          in: query
+          description: Number of objects to return per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: List of addresses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressList'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - Addresses
+    post:
+      summary: Create an address
+      description: Create a new address object
+      operationId: createAddress
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+      responses:
+        '201':
+          description: Address created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - Addresses
+
+  /v2/addresses/{id}:
+    get:
+      summary: Retrieve an address
+      description: Retrieve a specific address by ID
+      operationId: getAddress
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Address ID
+          schema:
+            type: string
+            pattern: '^adr_[a-zA-Z0-9]+$'
+      responses:
+        '200':
+          description: Address details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+        '404':
+          description: Address not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - Addresses
+
+  /v2/shipments:
+    get:
+      summary: List shipments
+      description: Retrieve a list of shipments
+      operationId: listShipments
+      parameters:
+        - name: before_id
+          in: query
+          description: Get objects created before this ID
+          schema:
+            type: string
+        - name: after_id
+          in: query
+          description: Get objects created after this ID
+          schema:
+            type: string
+        - name: purchased
+          in: query
+          description: Filter by purchased status
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of shipments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShipmentList'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - Shipments
+    post:
+      summary: Create a shipment
+      description: Create a new shipment object
+      operationId: createShipment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShipmentRequest'
+      responses:
+        '201':
+          description: Shipment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shipment'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - Shipments
+
+  /v2/shipments/{id}:
+    get:
+      summary: Retrieve a shipment
+      description: Retrieve a specific shipment by ID
+      operationId: getShipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Shipment ID
+          schema:
+            type: string
+            pattern: '^shp_[a-zA-Z0-9]+$'
+      responses:
+        '200':
+          description: Shipment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shipment'
+        '404':
+          description: Shipment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - Shipments
+
+  /v2/shipments/{id}/buy:
+    post:
+      summary: Buy a shipment
+      description: Purchase a shipping label for a shipment
+      operationId: buyShipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Shipment ID
+          schema:
+            type: string
+            pattern: '^shp_[a-zA-Z0-9]+$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuyShipmentRequest'
+      responses:
+        '200':
+          description: Shipment purchased successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shipment'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - Shipments
+
+  /v2/trackers:
+    get:
+      summary: List trackers
+      description: Retrieve a list of trackers
+      operationId: listTrackers
+      parameters:
+        - name: tracking_code
+          in: query
+          description: Filter by tracking code
+          schema:
+            type: string
+        - name: carrier
+          in: query
+          description: Filter by carrier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of trackers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackerList'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - Tracking
+    post:
+      summary: Create a tracker
+      description: Create a new tracker object
+      operationId: createTracker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackerRequest'
+      responses:
+        '201':
+          description: Tracker created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tracker'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - Tracking
+
+  /v2/trackers/{id}:
+    get:
+      summary: Retrieve a tracker
+      description: Retrieve a specific tracker by ID
+      operationId: getTracker
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tracker ID
+          schema:
+            type: string
+            pattern: '^trk_[a-zA-Z0-9]+$'
+      responses:
+        '200':
+          description: Tracker details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tracker'
+        '404':
+          description: Tracker not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - Tracking
+
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: API key as username, no password
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            errors:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+
+    AddressRequest:
+      type: object
+      required:
+        - address
+      properties:
+        address:
+          $ref: '#/components/schemas/AddressData'
+        verify:
+          type: array
+          items:
+            type: string
+            enum: [delivery, zip4]
+
+    AddressData:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 60
+        company:
+          type: string
+          maxLength: 60
+        street1:
+          type: string
+          maxLength: 60
+        street2:
+          type: string
+          maxLength: 60
+        city:
+          type: string
+          maxLength: 60
+        state:
+          type: string
+          maxLength: 60
+        zip:
+          type: string
+          maxLength: 20
+        country:
+          type: string
+          maxLength: 2
+        phone:
+          type: string
+          maxLength: 20
+        email:
+          type: string
+          format: email
+        residential:
+          type: boolean
+
+    Address:
+      type: object
+      required:
+        - id
+        - object
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          pattern: '^adr_[a-zA-Z0-9]+$'
+        object:
+          type: string
+          enum: [Address]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        name:
+          type: string
+          nullable: true
+        company:
+          type: string
+          nullable: true
+        street1:
+          type: string
+          nullable: true
+        street2:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        zip:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        residential:
+          type: boolean
+          nullable: true
+        verifications:
+          type: object
+          nullable: true
+
+    AddressList:
+      type: object
+      required:
+        - addresses
+        - has_more
+      properties:
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+        has_more:
+          type: boolean
+
+    ShipmentRequest:
+      type: object
+      required:
+        - shipment
+      properties:
+        shipment:
+          $ref: '#/components/schemas/ShipmentData'
+
+    ShipmentData:
+      type: object
+      required:
+        - to_address
+        - from_address
+        - parcel
+      properties:
+        to_address:
+          oneOf:
+            - type: string
+              pattern: '^adr_[a-zA-Z0-9]+$'
+            - $ref: '#/components/schemas/AddressData'
+        from_address:
+          oneOf:
+            - type: string
+              pattern: '^adr_[a-zA-Z0-9]+$'
+            - $ref: '#/components/schemas/AddressData'
+        parcel:
+          oneOf:
+            - type: string
+              pattern: '^prcl_[a-zA-Z0-9]+$'
+            - $ref: '#/components/schemas/ParcelData'
+        options:
+          $ref: '#/components/schemas/Options'
+        reference:
+          type: string
+        service:
+          type: string
+
+    ParcelData:
+      type: object
+      properties:
+        length:
+          type: number
+          format: float
+          minimum: 0
+        width:
+          type: number
+          format: float
+          minimum: 0
+        height:
+          type: number
+          format: float
+          minimum: 0
+        weight:
+          type: number
+          format: float
+          minimum: 0
+        predefined_package:
+          type: string
+          enum: [Letter, SmallFlatRateBox, MediumFlatRateBox, LargeFlatRateBox]
+
+    Options:
+      type: object
+      properties:
+        saturday_delivery:
+          type: boolean
+        signature_confirmation:
+          type: string
+          enum: [adult, direct, indirect]
+        delivery_confirmation:
+          type: string
+          enum: [NO_SIGNATURE, SIGNATURE, ADULT_SIGNATURE]
+        insurance:
+          type: string
+        label_format:
+          type: string
+          enum: [PNG, PDF, ZPL, EPL2]
+
+    Rate:
+      type: object
+      required:
+        - id
+        - object
+        - service
+        - carrier
+        - rate
+        - currency
+      properties:
+        id:
+          type: string
+          pattern: '^rate_[a-zA-Z0-9]+$'
+        object:
+          type: string
+          enum: [Rate]
+        service:
+          type: string
+        carrier:
+          type: string
+        rate:
+          type: string
+        currency:
+          type: string
+        retail_rate:
+          type: string
+        delivery_days:
+          type: integer
+          nullable: true
+        delivery_date:
+          type: string
+          format: date
+          nullable: true
+
+    Shipment:
+      type: object
+      required:
+        - id
+        - object
+        - created_at
+        - updated_at
+        - to_address
+        - from_address
+        - parcel
+        - rates
+      properties:
+        id:
+          type: string
+          pattern: '^shp_[a-zA-Z0-9]+$'
+        object:
+          type: string
+          enum: [Shipment]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        to_address:
+          $ref: '#/components/schemas/Address'
+        from_address:
+          $ref: '#/components/schemas/Address'
+        parcel:
+          $ref: '#/components/schemas/Parcel'
+        rates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rate'
+        selected_rate:
+          $ref: '#/components/schemas/Rate'
+          nullable: true
+        postage_label:
+          $ref: '#/components/schemas/PostageLabel'
+          nullable: true
+        tracking_code:
+          type: string
+          nullable: true
+        tracker:
+          $ref: '#/components/schemas/Tracker'
+          nullable: true
+        insurance:
+          type: string
+          nullable: true
+        reference:
+          type: string
+          nullable: true
+
+    Parcel:
+      type: object
+      required:
+        - id
+        - object
+        - length
+        - width
+        - height
+        - weight
+      properties:
+        id:
+          type: string
+          pattern: '^prcl_[a-zA-Z0-9]+$'
+        object:
+          type: string
+          enum: [Parcel]
+        length:
+          type: number
+          format: float
+        width:
+          type: number
+          format: float
+        height:
+          type: number
+          format: float
+        weight:
+          type: number
+          format: float
+        predefined_package:
+          type: string
+          nullable: true
+
+    PostageLabel:
+      type: object
+      required:
+        - id
+        - object
+        - label_url
+      properties:
+        id:
+          type: string
+          pattern: '^pl_[a-zA-Z0-9]+$'
+        object:
+          type: string
+          enum: [PostageLabel]
+        label_url:
+          type: string
+          format: uri
+        label_pdf_url:
+          type: string
+          format: uri
+        label_zpl_url:
+          type: string
+          format: uri
+        label_file_type:
+          type: string
+
+    ShipmentList:
+      type: object
+      required:
+        - shipments
+        - has_more
+      properties:
+        shipments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Shipment'
+        has_more:
+          type: boolean
+
+    BuyShipmentRequest:
+      type: object
+      required:
+        - rate
+      properties:
+        rate:
+          oneOf:
+            - type: object
+              required:
+                - id
+              properties:
+                id:
+                  type: string
+                  pattern: '^rate_[a-zA-Z0-9]+$'
+            - type: object
+              required:
+                - carrier
+                - service
+              properties:
+                carrier:
+                  type: string
+                service:
+                  type: string
+        insurance:
+          type: string
+
+    TrackerRequest:
+      type: object
+      required:
+        - tracker
+      properties:
+        tracker:
+          $ref: '#/components/schemas/TrackerData'
+
+    TrackerData:
+      type: object
+      required:
+        - tracking_code
+      properties:
+        tracking_code:
+          type: string
+        carrier:
+          type: string
+
+    Tracker:
+      type: object
+      required:
+        - id
+        - object
+        - tracking_code
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          pattern: '^trk_[a-zA-Z0-9]+$'
+        object:
+          type: string
+          enum: [Tracker]
+        tracking_code:
+          type: string
+        status:
+          type: string
+          enum: [pre_transit, in_transit, out_for_delivery, delivered, available_for_pickup, return_to_sender, failure, cancelled, error, unknown]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        carrier:
+          type: string
+        tracking_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrackingDetail'
+        est_delivery_date:
+          type: string
+          format: date
+          nullable: true
+        signed_by:
+          type: string
+          nullable: true
+
+    TrackingDetail:
+      type: object
+      required:
+        - object
+        - message
+        - status
+      properties:
+        object:
+          type: string
+          enum: [TrackingDetail]
+        message:
+          type: string
+        status:
+          type: string
+          enum: [pre_transit, in_transit, out_for_delivery, delivered, available_for_pickup, return_to_sender, failure, cancelled, error, unknown]
+        datetime:
+          type: string
+          format: date-time
+        tracking_location:
+          $ref: '#/components/schemas/TrackingLocation'
+
+    TrackingLocation:
+      type: object
+      properties:
+        object:
+          type: string
+          enum: [TrackingLocation]
+        city:
+          type: string
+        state:
+          type: string
+        country:
+          type: string
+        zip:
+          type: string
+
+    TrackerList:
+      type: object
+      required:
+        - trackers
+        - has_more
+      properties:
+        trackers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tracker'
+        has_more:
+          type: boolean
+
+tags:
+  - name: Addresses
+    description: Address validation and management
+  - name: Shipments
+    description: Create and manage shipments
+  - name: Tracking
+    description: Track packages and shipments
