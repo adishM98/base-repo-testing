@@ -74,7 +74,12 @@ jobs:
       - name: Update submodules
         run: |
           git submodule update --init --recursive
-          git submodule foreach 'git checkout ${{ github.event.pull_request.base.ref }} && git pull origin ${{ github.event.pull_request.base.ref }}'
+          git submodule foreach '
+            echo "🔄 Updating submodule: $name"
+            git fetch origin
+            git checkout ${{ github.event.pull_request.base.ref }} || echo "⚠️ Branch ${{ github.event.pull_request.base.ref }} not found in $name"
+            git pull origin ${{ github.event.pull_request.base.ref }} || echo "⚠️ Could not pull branch"
+          '
 
       - name: Commit submodule updates
         run: |
