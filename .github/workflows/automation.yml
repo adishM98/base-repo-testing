@@ -62,38 +62,8 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "is_lts=$IS_LTS" >> $GITHUB_OUTPUT
 
-  update-submodule-sha:
-    needs: merge-submodules
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Update submodules
-        run: |
-          git submodule update --init --recursive
-          git submodule foreach '
-            echo "🔄 Updating submodule: $name"
-            git fetch origin
-            git checkout ${{ github.event.pull_request.base.ref }} || echo "⚠️ Branch ${{ github.event.pull_request.base.ref }} not found in $name"
-            git pull origin ${{ github.event.pull_request.base.ref }} || echo "⚠️ Could not pull branch"
-          '
-
-      - name: Commit submodule updates
-        env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN_PR }}
-        run: |
-          git config user.name "ToolJet Bot"
-          git config user.email "adish.madhu@gmail.com"
-          git remote set-url origin https://x-access-token:${TOKEN_PR}@github.com/${{ github.repository }}
-          git add .
-          git commit -m "Update submodule SHAs after release" || echo "No changes to commit"
-          git push origin HEAD:${{ github.event.pull_request.base.ref }}
-
   release:
-    needs: [merge-submodules, update-submodule-sha]
+    needs: [merge-submodules]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout correct branch
