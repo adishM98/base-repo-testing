@@ -9,10 +9,31 @@ on:
       - lts-3.16
 
 jobs:
-  merge-submodules:
+  extract-version:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+      is_lts: ${{ steps.extract.outputs.is_lts }}
+    steps:
+      - name: Extract version from title
+        id: extract
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          VERSION=$(echo "$TITLE" | grep -oE 'Version ([0-9]+\.[0-9]+(-LTS)?)' | awk '{ print $2 }')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "::set-output name=version::$VERSION"
 
+          if [[ "$VERSION" == *-LTS ]]; then
+            echo "::set-output name=is_lts::true"
+          else
+            echo "::set-output name=is_lts::false"
+          fi
+
+  merge-submodules:
+    needs: extract-version
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
     steps:
       - name: Extract Branch Name
         run: echo "BRANCH_NAME=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
@@ -45,80 +66,47 @@ jobs:
     needs: merge-submodules
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout ToolJet (Main or LTS)
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.ref }}
-          submodules: true
+          submodules: recursive
 
       - name: Update submodules
         run: |
           git submodule update --init --recursive
-          git submodule foreach 'git checkout ${{ github.event.pull_request.base.ref }} && git pull origin ${{ github.event.pull_request.base.ref }}'
-          git add .
+          git submodule foreach 'git checkout main && git pull origin main'
+
+      - name: Commit submodule updates
+        run: |
           git config user.name "ToolJet Bot"
           git config user.email "adish.madhu@gmail.com"
-          git commit -am "🔁 chore: update submodule SHAs" || echo "No changes to commit"
-          git push origin ${{ github.event.pull_request.base.ref }}
+          git add .
+          git commit -m "Update submodule SHAs after release" || echo "No changes to commit"
+          git push origin HEAD:${{ github.event.pull_request.base.ref }}
 
-  check-submodule-prs:
+  release:
     needs: update-submodule-sha
     runs-on: ubuntu-latest
     steps:
-      - name: Confirm submodule PRs were merged
-        run: echo "✅ Verified submodule PRs were merged and SHAs updated."
-
-  release:
-    needs: check-submodule-prs
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Extract version from title
-        id: extract
-        run: |
-          TITLE="${{ github.event.pull_request.title }}"
-          VERSION=$(echo "$TITLE" | grep -oE 'Version ([0-9]+\.[0-9]+(-LTS)?)' | awk '{ print $2 }')
-
-          if [[ -z "$VERSION" ]]; then
-            echo "❌ No version found in PR title"
-            exit 1
-          fi
-
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-          if [[ "$VERSION" == *-LTS ]]; then
-            echo "IS_LTS=true" >> $GITHUB_ENV
-            echo "VERSION_BASE=${VERSION%-LTS}" >> $GITHUB_ENV
-            echo "is_lts=true" >> $GITHUB_OUTPUT
-          else
-            echo "IS_LTS=false" >> $GITHUB_ENV
-            echo "VERSION_BASE=$VERSION" >> $GITHUB_ENV
-            echo "is_lts=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Checkout ToolJet
+      - name: Checkout correct branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.base.ref }}
 
-      - name: Set up Git
+      - name: Create Git tag
         run: |
           git config user.name "ToolJet Bot"
           git config user.email "adish.madhu@gmail.com"
-
-      - name: Create Git tag
-        run: |
-          TAG=v${{ env.VERSION }}
-          git tag $TAG
-          git push origin $TAG
+          git tag v${{ needs.extract-version.outputs.version }}
+          git push origin v${{ needs.extract-version.outputs.version }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ env.VERSION }}
-          name: v${{ env.VERSION }}
+          tag_name: v${{ needs.extract-version.outputs.version }}
+          name: v${{ needs.extract-version.outputs.version }}
           generate_release_notes: true
-          prerelease: ${{ env.IS_LTS != 'true' }}
-          make_latest: ${{ env.IS_LTS == 'true' && 'true' || 'false' }}
+          prerelease: ${{ needs.extract-version.outputs.is_lts != 'true' }}
+          make_latest: ${{ needs.extract-version.outputs.is_lts == 'true' && 'true' || 'false' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
