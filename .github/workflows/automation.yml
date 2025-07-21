@@ -66,7 +66,7 @@ jobs:
     needs: [merge-submodules]
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Required for creating tags and releases
+      contents: write
     steps:
       - name: Checkout correct branch
         uses: actions/checkout@v4
@@ -85,9 +85,10 @@ jobs:
             TAG_NAME="${TAG_NAME}-LTS"
           fi
 
-          echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
-          git tag v"$TAG_NAME"
-          git push origin v"$TAG_NAME"
+          VERSION_TAG="v$TAG_NAME"
+          echo "name=$VERSION_TAG" >> $GITHUB_OUTPUT
+          git tag "$VERSION_TAG"
+          git push origin "$VERSION_TAG"
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN_PR }}
 
@@ -108,4 +109,4 @@ jobs:
           if [[ "${{ needs.merge-submodules.outputs.is_lts }}" == "true" ]]; then
             TAG_NAME="${TAG_NAME}-LTS"
           fi
-          echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "name=v$TAG_NAME" >> $GITHUB_OUTPUT
