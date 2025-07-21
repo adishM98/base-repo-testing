@@ -74,6 +74,7 @@ jobs:
           ref: ${{ github.event.pull_request.base.ref }}
 
       - name: Create Git tag
+        id: tag
         run: |
           git config user.name "ToolJet Bot"
           git config user.email "adish.madhu@gmail.com"
@@ -84,6 +85,7 @@ jobs:
             TAG_NAME="${TAG_NAME}-LTS"
           fi
 
+          echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
           git tag "$TAG_NAME"
           git push origin "$TAG_NAME"
         env:
@@ -97,8 +99,7 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ needs.merge-submodules.outputs.is_lts != 'true' }}
           make_latest: ${{ needs.merge-submodules.outputs.is_lts == 'true' && 'true' || 'false' }}
-        env:
-          TOKEN_PR: ${{ secrets.TOKEN_PR }}
+          token: ${{ secrets.TOKEN_PR }}
 
       - name: Output release tag
         id: tag
