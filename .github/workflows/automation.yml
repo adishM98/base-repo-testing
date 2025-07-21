@@ -86,8 +86,8 @@ jobs:
           fi
 
           echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
-          git tag "$TAG_NAME"
-          git push origin "$TAG_NAME"
+          git tag v"$TAG_NAME"
+          git push origin v"$TAG_NAME"
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN_PR }}
 
@@ -102,7 +102,7 @@ jobs:
           token: ${{ secrets.TOKEN_PR }}
 
       - name: Output release tag
-        id: tag_output  # ✅ Unique ID to avoid conflict
+        id: tag_output
         run: |
           TAG_NAME="${{ needs.merge-submodules.outputs.version }}"
           if [[ "${{ needs.merge-submodules.outputs.is_lts }}" == "true" ]]; then
