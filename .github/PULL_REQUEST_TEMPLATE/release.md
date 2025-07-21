@@ -1,7 +1,13 @@
+---
+name: 🚀 Release PR
+about: Use this template when preparing a release
+title: "Release: | Version <x.y.z>"
+---
+
 ## 🚀 Release PR
 
-> **📝 IMPORTANT: Edit the PR title before submitting.**
-> Format: `Release: <description> | Version <version-number>`
+> **📝 IMPORTANT: Edit the PR title before submitting.**  
+> Format: `Release: <description> | Version <version-number>`  
 > Example: `Release: LTS patch fixes | Version 3.16-lts`
 
 ---
@@ -26,4 +32,3 @@ Version: `3.16-lts`
 - [ ] Merge strategy: **Squash and Merge**
 
 ---
-
