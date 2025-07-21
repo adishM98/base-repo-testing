@@ -102,7 +102,7 @@ jobs:
           token: ${{ secrets.TOKEN_PR }}
 
       - name: Output release tag
-        id: tag
+        id: tag_output  # ✅ Unique ID to avoid conflict
         run: |
           TAG_NAME="${{ needs.merge-submodules.outputs.version }}"
           if [[ "${{ needs.merge-submodules.outputs.is_lts }}" == "true" ]]; then
