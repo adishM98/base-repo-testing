@@ -1,161 +1,66 @@
-name: Merge Submodule PRs
+name: Release on PR Merge
 
 on:
   pull_request:
-    types: [closed, labeled]
+    types:
+      - closed
+    branches:
+      - main
+      - lts-3.16
 
 jobs:
   merge-submodules:
-    if: github.event.pull_request.merged == true &&
-        (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'lts-3.16')
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-
     steps:
-      - name: Extract Branch Name
-        run: echo "BRANCH_NAME=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+      - name: Checkout ToolJet
+        uses: actions/checkout@v4
 
-      - name: Merge PR in adishm98/server-ee-testing (if exists)
+      - name: Update submodules
         run: |
-          PR=$(gh pr list -R adishm98/server-ee-testing --head "$BRANCH_NAME" --state open --json number -q '.[0].number')
-          if [ -n "$PR" ]; then
-            echo "Found ee-server PR: #$PR"
-            gh pr merge -R adishm98/server-ee-testing "$PR" --merge --admin
-          else
-            echo "No open adishm98/server-ee-testing PR for branch $BRANCH_NAME"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.TOKEN_PR }}
-
-      - name: Merge PR in adishm98/frontend-ee-testing (if exists)
-        run: |
-          PR=$(gh pr list -R adishm98/frontend-ee-testing --head "$BRANCH_NAME" --state open --json number -q '.[0].number')
-          if [ -n "$PR" ]; then
-            echo "Found adishm98/frontend-ee-testing PR: #$PR"
-            gh pr merge -R adishm98/frontend-ee-testing "$PR" --merge --admin
-          else
-            echo "No open adishm98/frontend-ee-testing PR for branch $BRANCH_NAME"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.TOKEN_PR }}
+          git submodule update --init --recursive
+          git submodule foreach 'git checkout main && git pull origin main'
 
   update-submodule-sha:
     needs: merge-submodules
-    if: github.event.pull_request.merged == true &&
-        (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'lts-3.16')
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout base repo
+      - name: Checkout ToolJet
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.TOKEN_PR }}
-          ref: ${{ github.event.pull_request.base.ref }}
-          submodules: recursive
 
-      - name: Update submodules to latest main
+      - name: Commit updated submodule SHAs
         run: |
-          git config user.name "adishM98 Bot"
+          git config user.name "ToolJet Bot"
           git config user.email "adish.madhu@gmail.com"
-
-          git submodule update --remote frontend/ee
-          git submodule update --remote server/ee
-
-          git add frontend/ee server/ee
-
-          if git diff --cached --quiet; then
-            echo "No submodule updates found." && exit 0
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.TOKEN_PR }}
-
-      - name: Get latest authors from submodules
-        id: submodule-authors
-        run: |
-          set -e
-
-          cd frontend/ee
-          FRONTEND_AUTHOR=$(git log -1 --pretty=format:'%an <%ae>')
-          FRONTEND_COMMIT=$(git rev-parse HEAD)
-          cd -
-
-          cd server/ee
-          SERVER_AUTHOR=$(git log -1 --pretty=format:'%an <%ae>')
-          SERVER_COMMIT=$(git rev-parse HEAD)
-          cd -
-
-          echo "FRONTEND_AUTHOR=$FRONTEND_AUTHOR" >> $GITHUB_ENV
-          echo "FRONTEND_COMMIT=$FRONTEND_COMMIT" >> $GITHUB_ENV
-          echo "SERVER_AUTHOR=$SERVER_AUTHOR" >> $GITHUB_ENV
-          echo "SERVER_COMMIT=$SERVER_COMMIT" >> $GITHUB_ENV
-
-      - name: Create PR for submodule update
-        id: cpr
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.TOKEN_PR }}
-          commit-message: |
-            🚀 chore: update submodules to latest main after auto-merge
-
-            - frontend/ee -> ${{ env.FRONTEND_COMMIT }} by ${{ env.FRONTEND_AUTHOR }}
-            - server/ee   -> ${{ env.SERVER_COMMIT }} by ${{ env.SERVER_AUTHOR }}
-          title: "🚀 chore: update submodules"
-          body: |
-            Auto-generated PR to update submodules after base PR merge.
-
-            **Submodule updates:**
-            - frontend/ee -> `${{ env.FRONTEND_COMMIT }}` by `${{ env.FRONTEND_AUTHOR }}`
-            - server/ee   -> `${{ env.SERVER_COMMIT }}` by `${{ env.SERVER_AUTHOR }}`
-          branch: auto/update-submodules-${{ github.run_id }}
-          base: main
-
-      - name: Auto-merge PR
-        if: steps.cpr.outputs.pull-request-number != ''
-        run: |
-          echo "Merging submodule update PR #${PR_NUMBER}"
-          gh pr merge --squash --admin "$PR_NUMBER" --repo adishm98/base-repo-testing
-        env:
-          GH_TOKEN: ${{ secrets.TOKEN_PR }}
-          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+          git add .
+          git commit -m "🔀 chore: update submodule SHAs post-merge" || echo "No changes to commit"
+          git push origin HEAD:${{ github.event.pull_request.base.ref }}
 
   check-submodule-prs:
-    if: github.event.action == 'labeled' && github.event.label.name == 'ready-to-merge'
+    needs: update-submodule-sha
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-
     steps:
-      - name: Extract Branch Name
-        run: echo "BRANCH_NAME=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+      - name: Checkout ToolJet
+        uses: actions/checkout@v4
 
-      - name: Check and Comment Linked Submodule PRs
-        run: |
-          echo "🔍 Checking linked submodule PRs for \`$BRANCH_NAME\`:" > comment.md
-          echo "" >> comment.md
-
-          SERVER_URL=$(gh pr list -R adishm98/server-ee-testing --head "$BRANCH_NAME" --state open --json url -q '.[0].url')
-          FRONTEND_URL=$(gh pr list -R adishm98/frontend-ee-testing --head "$BRANCH_NAME" --state open --json url -q '.[0].url')
-
-          if [ -n "$SERVER_URL" ]; then
-            echo "✅ ee-server PR - $SERVER_URL" >> comment.md
-          else
-            echo "❌ No open PR in ee-server" >> comment.md
-          fi
-
-          if [ -n "$FRONTEND_URL" ]; then
-            echo "✅ ee-frontend PR - $FRONTEND_URL" >> comment.md
-          else
-            echo "❌ No open PR in ee-frontend" >> comment.md
-          fi
-
-          echo "" >> comment.md
-          echo "📝 **Note**: The submodule PRs will be auto-merged once you merge this base PR-$PR_NUMBER into \`main\`." >> comment.md
-
-          gh pr comment "$PR_NUMBER" --repo adishm98/base-repo-testing --body-file comment.md
-        env:
-          GH_TOKEN: ${{ secrets.TOKEN_PR }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+      - name: Create PR for submodule update
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "🔄 chore: update submodule references"
+          branch: auto/update-submodules-${{ github.run_id }}
+          base: ${{ github.event.pull_request.base.ref }}
+          title: "🔄 chore: update submodule references after merge"
+          body: |
+            This PR updates submodule SHAs post-release.
+          author: adishM98 Bot <adish.madhu@gmail.com>
+          committer: adishM98 Bot <adish.madhu@gmail.com>
+          labels: post-merge,automation
 
   release:
-    if: ${{ always() && github.event.pull_request.merged == true }}
-    needs: merge-submodules
+    needs: check-submodule-prs
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
@@ -182,17 +87,10 @@ jobs:
             echo "is_lts=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Checkout LTS branch
-        if: steps.extract.outputs.is_lts == 'true'
+      - name: Checkout correct branch
         uses: actions/checkout@v4
         with:
-          ref: lts-3.16
-
-      - name: Checkout main branch
-        if: steps.extract.outputs.is_lts == 'false'
-        uses: actions/checkout@v4
-        with:
-          ref: main
+          ref: ${{ github.event.pull_request.base.ref }}
 
       - name: Set up Git
         run: |
