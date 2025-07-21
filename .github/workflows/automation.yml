@@ -16,51 +16,39 @@ jobs:
       version: ${{ steps.extract.outputs.version }}
       is_lts: ${{ steps.extract.outputs.is_lts }}
     steps:
-      - name: Extract version from title
-        id: extract
+      - name: Extract Branch Name and Base Branch
         run: |
-          TITLE="${{ github.event.pull_request.title }}"
-          VERSION=$(echo "$TITLE" | grep -oE 'Version ([0-9]+\.[0-9]+(-LTS)?)' | awk '{ print $2 }')
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "::set-output name=version::$VERSION"
-
-          if [[ "$VERSION" == *-LTS ]]; then
-            echo "::set-output name=is_lts::true"
-          else
-            echo "::set-output name=is_lts::false"
-          fi
-
-  merge-submodules:
-    needs: extract-version
-    if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
-    steps:
-      - name: Extract Branch Name
-        run: echo "BRANCH_NAME=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+          echo "BRANCH_NAME=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+          echo "BASE_BRANCH=${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
 
       - name: Merge PR in ee-server (if exists)
         run: |
-          PR=$(gh pr list -R ToolJet/ee-server --head "$BRANCH_NAME" --state open --json number -q '.[0].number')
+          PR=$(gh pr list -R ToolJet/ee-server --head "$BRANCH_NAME" --base "$BASE_BRANCH" --state open --json number -q '.[0].number')
           if [ -n "$PR" ]; then
             echo "Found ee-server PR: #$PR"
             gh pr merge -R ToolJet/ee-server "$PR" --merge --admin
           else
-            echo "No open ee-server PR for branch $BRANCH_NAME"
+            echo "No open ee-server PR for branch $BRANCH_NAME into $BASE_BRANCH"
           fi
         env:
           GH_TOKEN: ${{ secrets.TOKEN_PR }}
+          BRANCH_NAME: ${{ env.BRANCH_NAME }}
+          BASE_BRANCH: ${{ env.BASE_BRANCH }}
 
       - name: Merge PR in ee-frontend (if exists)
         run: |
-          PR=$(gh pr list -R ToolJet/ee-frontend --head "$BRANCH_NAME" --state open --json number -q '.[0].number')
+          PR=$(gh pr list -R ToolJet/ee-frontend --head "$BRANCH_NAME" --base "$BASE_BRANCH" --state open --json number -q '.[0].number')
           if [ -n "$PR" ]; then
             echo "Found ee-frontend PR: #$PR"
             gh pr merge -R ToolJet/ee-frontend "$PR" --merge --admin
           else
-            echo "No open ee-frontend PR for branch $BRANCH_NAME"
+            echo "No open ee-frontend PR for branch $BRANCH_NAME into $BASE_BRANCH"
           fi
         env:
           GH_TOKEN: ${{ secrets.TOKEN_PR }}
+          BRANCH_NAME: ${{ env.BRANCH_NAME }}
+          BASE_BRANCH: ${{ env.BASE_BRANCH }}
+
 
   update-submodule-sha:
     needs: merge-submodules
