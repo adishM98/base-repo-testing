@@ -15,7 +15,6 @@ jobs:
     outputs:
       version: ${{ steps.extract.outputs.version }}
       is_lts: ${{ steps.extract.outputs.is_lts }}
-
     steps:
       - name: Extract Branch Name and Base Branch
         run: |
@@ -33,6 +32,8 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.TOKEN_PR }}
+          BRANCH_NAME: ${{ env.BRANCH_NAME }}
+          BASE_BRANCH: ${{ env.BASE_BRANCH }}
 
       - name: Merge PR in ee-frontend (if exists)
         run: |
@@ -45,33 +46,24 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.TOKEN_PR }}
+          BRANCH_NAME: ${{ env.BRANCH_NAME }}
+          BASE_BRANCH: ${{ env.BASE_BRANCH }}
 
       - name: Extract version from title
         id: extract
         run: |
           TITLE="${{ github.event.pull_request.title }}"
-          VERSION=$(echo "$TITLE" | grep -oE 'Version ([0-9]+\.[0-9]+(-LTS)?)' | awk '{ print $2 }')
-
-          if [[ -z "$VERSION" ]]; then
-            echo "❌ No version found in PR title"
-            exit 1
+          VERSION=$(echo "$TITLE" | grep -oE '([0-9]+\.[0-9]+(\.[0-9]+)?)')
+          IS_LTS=false
+          if [[ "$TITLE" =~ [Ll][Tt][Ss] ]]; then
+            IS_LTS=true
           fi
-
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-          if [[ "$VERSION" == *-LTS ]]; then
-            echo "IS_LTS=true" >> $GITHUB_ENV
-            echo "is_lts=true" >> $GITHUB_OUTPUT
-          else
-            echo "IS_LTS=false" >> $GITHUB_ENV
-            echo "is_lts=false" >> $GITHUB_OUTPUT
-          fi
+          echo "is_lts=$IS_LTS" >> $GITHUB_OUTPUT
 
   update-submodule-sha:
     needs: merge-submodules
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -81,7 +73,7 @@ jobs:
       - name: Update submodules
         run: |
           git submodule update --init --recursive
-          git submodule foreach 'git checkout main && git pull origin main'
+          git submodule foreach 'git checkout ${{ github.event.pull_request.base.ref }} && git pull origin ${{ github.event.pull_request.base.ref }}'
 
       - name: Commit submodule updates
         run: |
@@ -92,9 +84,8 @@ jobs:
           git push origin HEAD:${{ github.event.pull_request.base.ref }}
 
   release:
-    needs: update-submodule-sha
+    needs: [merge-submodules, update-submodule-sha]
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout correct branch
         uses: actions/checkout@v4
@@ -105,16 +96,29 @@ jobs:
         run: |
           git config user.name "ToolJet Bot"
           git config user.email "adish.madhu@gmail.com"
-          git tag v${{ needs.merge-submodules.outputs.version }}
-          git push origin v${{ needs.merge-submodules.outputs.version }}
+          TAG_NAME="${{ needs.merge-submodules.outputs.version }}"
+          if [[ "${{ needs.merge-submodules.outputs.is_lts }}" == "true" ]]; then
+            TAG_NAME="${TAG_NAME}-LTS"
+          fi
+          git tag "$TAG_NAME"
+          git push origin "$TAG_NAME"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.merge-submodules.outputs.version }}
-          name: v${{ needs.merge-submodules.outputs.version }}
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: ${{ steps.tag.outputs.name }}
           generate_release_notes: true
           prerelease: ${{ needs.merge-submodules.outputs.is_lts != 'true' }}
           make_latest: ${{ needs.merge-submodules.outputs.is_lts == 'true' && 'true' || 'false' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Output release tag
+        id: tag
+        run: |
+          TAG_NAME="${{ needs.merge-submodules.outputs.version }}"
+          if [[ "${{ needs.merge-submodules.outputs.is_lts }}" == "true" ]]; then
+            TAG_NAME="${TAG_NAME}-LTS"
+          fi
+          echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
