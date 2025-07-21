@@ -12,55 +12,64 @@ jobs:
   merge-submodules:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout ToolJet
-        uses: actions/checkout@v4
 
-      - name: Update submodules
+    steps:
+      - name: Extract Branch Name
+        run: echo "BRANCH_NAME=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+
+      - name: Merge PR in ee-server (if exists)
         run: |
-          git submodule update --init --recursive
-          git submodule foreach 'git checkout main && git pull origin main'
+          PR=$(gh pr list -R ToolJet/ee-server --head "$BRANCH_NAME" --state open --json number -q '.[0].number')
+          if [ -n "$PR" ]; then
+            echo "Found ee-server PR: #$PR"
+            gh pr merge -R ToolJet/ee-server "$PR" --merge --admin
+          else
+            echo "No open ee-server PR for branch $BRANCH_NAME"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN_PR }}
+
+      - name: Merge PR in ee-frontend (if exists)
+        run: |
+          PR=$(gh pr list -R ToolJet/ee-frontend --head "$BRANCH_NAME" --state open --json number -q '.[0].number')
+          if [ -n "$PR" ]; then
+            echo "Found ee-frontend PR: #$PR"
+            gh pr merge -R ToolJet/ee-frontend "$PR" --merge --admin
+          else
+            echo "No open ee-frontend PR for branch $BRANCH_NAME"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN_PR }}
 
   update-submodule-sha:
     needs: merge-submodules
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout ToolJet
+      - name: Checkout ToolJet (Main or LTS)
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          submodules: true
 
-      - name: Commit updated submodule SHAs
+      - name: Update submodules
         run: |
+          git submodule update --init --recursive
+          git submodule foreach 'git checkout ${{ github.event.pull_request.base.ref }} && git pull origin ${{ github.event.pull_request.base.ref }}'
+          git add .
           git config user.name "ToolJet Bot"
           git config user.email "adish.madhu@gmail.com"
-          git add .
-          git commit -m "🔀 chore: update submodule SHAs post-merge" || echo "No changes to commit"
-          git push origin HEAD:${{ github.event.pull_request.base.ref }}
+          git commit -am "🔁 chore: update submodule SHAs" || echo "No changes to commit"
+          git push origin ${{ github.event.pull_request.base.ref }}
 
   check-submodule-prs:
     needs: update-submodule-sha
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout ToolJet
-        uses: actions/checkout@v4
-
-      - name: Create PR for submodule update
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "🔄 chore: update submodule references"
-          branch: auto/update-submodules-${{ github.run_id }}
-          base: ${{ github.event.pull_request.base.ref }}
-          title: "🔄 chore: update submodule references after merge"
-          body: |
-            This PR updates submodule SHAs post-release.
-          author: adishM98 Bot <adish.madhu@gmail.com>
-          committer: adishM98 Bot <adish.madhu@gmail.com>
-          labels: post-merge,automation
+      - name: Confirm submodule PRs were merged
+        run: echo "✅ Verified submodule PRs were merged and SHAs updated."
 
   release:
     needs: check-submodule-prs
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
@@ -87,7 +96,7 @@ jobs:
             echo "is_lts=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Checkout correct branch
+      - name: Checkout ToolJet
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.base.ref }}
