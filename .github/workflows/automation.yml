@@ -75,6 +75,7 @@ jobs:
         run: |
           git config user.name "ToolJet Bot"
           git config user.email "adish.madhu@gmail.com"
+          git remote set-url origin https://x-access-token:${{ secrets.TOKEN_PR }}@github.com/${{ github.repository }}
           TAG_NAME="${{ needs.merge-submodules.outputs.version }}"
           if [[ "${{ needs.merge-submodules.outputs.is_lts }}" == "true" ]]; then
             TAG_NAME="${TAG_NAME}-LTS"
