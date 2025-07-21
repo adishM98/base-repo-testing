@@ -65,6 +65,8 @@ jobs:
   release:
     needs: [merge-submodules]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required for creating tags and releases
     steps:
       - name: Checkout correct branch
         uses: actions/checkout@v4
@@ -75,13 +77,17 @@ jobs:
         run: |
           git config user.name "ToolJet Bot"
           git config user.email "adish.madhu@gmail.com"
-          git remote set-url origin https://${{ secrets.TOKEN_PR }}@github.com/${{ github.repository }}
+          git config --global url."https://${{ secrets.TOKEN_PR }}@github.com/".insteadOf "https://github.com/"
+          
           TAG_NAME="${{ needs.merge-submodules.outputs.version }}"
           if [[ "${{ needs.merge-submodules.outputs.is_lts }}" == "true" ]]; then
             TAG_NAME="${TAG_NAME}-LTS"
           fi
+
           git tag "$TAG_NAME"
           git push origin "$TAG_NAME"
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN_PR }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
