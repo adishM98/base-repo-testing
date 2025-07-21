@@ -23,10 +23,10 @@ jobs:
 
       - name: Merge PR in ee-server (if exists)
         run: |
-          PR=$(gh pr list -R ToolJet/ee-server --head "$BRANCH_NAME" --base "$BASE_BRANCH" --state open --json number -q '.[0].number')
+          PR=$(gh pr list -R adishm98/server-ee-testing --head "$BRANCH_NAME" --base "$BASE_BRANCH" --state open --json number -q '.[0].number')
           if [ -n "$PR" ]; then
             echo "Found ee-server PR: #$PR"
-            gh pr merge -R ToolJet/ee-server "$PR" --merge --admin
+            gh pr merge -R adishm98/server-ee-testing "$PR" --merge --admin
           else
             echo "No open ee-server PR for branch $BRANCH_NAME into $BASE_BRANCH"
           fi
@@ -37,10 +37,10 @@ jobs:
 
       - name: Merge PR in ee-frontend (if exists)
         run: |
-          PR=$(gh pr list -R ToolJet/ee-frontend --head "$BRANCH_NAME" --base "$BASE_BRANCH" --state open --json number -q '.[0].number')
+          PR=$(gh pr list -R adishm98/frontend-ee-testing --head "$BRANCH_NAME" --base "$BASE_BRANCH" --state open --json number -q '.[0].number')
           if [ -n "$PR" ]; then
             echo "Found ee-frontend PR: #$PR"
-            gh pr merge -R ToolJet/ee-frontend "$PR" --merge --admin
+            gh pr merge -R adishm98/frontend-ee-testing "$PR" --merge --admin
           else
             echo "No open ee-frontend PR for branch $BRANCH_NAME into $BASE_BRANCH"
           fi
@@ -48,6 +48,7 @@ jobs:
           GH_TOKEN: ${{ secrets.TOKEN_PR }}
           BRANCH_NAME: ${{ env.BRANCH_NAME }}
           BASE_BRANCH: ${{ env.BASE_BRANCH }}
+
 
       - name: Extract version from title
         id: extract
