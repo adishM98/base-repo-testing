@@ -23,7 +23,7 @@ jobs:
 
       - name: Merge PR in ee-server (if exists)
         run: |
-          PR=$(gh pr list -R adishm98/server-ee-testing --head "$BRANCH_NAME" --base "$BASE_BRANCH" --state open --json number -q '.[0].number')
+          PR=$(gh pr list -R adishm98/server-ee-testing --head "$BRANCH_NAME" --state open --json number -q '.[0].number')
           if [ -n "$PR" ]; then
             echo "Found ee-server PR: #$PR"
             gh pr merge -R adishm98/server-ee-testing "$PR" --merge --admin
@@ -37,7 +37,7 @@ jobs:
 
       - name: Merge PR in ee-frontend (if exists)
         run: |
-          PR=$(gh pr list -R adishm98/frontend-ee-testing --head "$BRANCH_NAME" --base "$BASE_BRANCH" --state open --json number -q '.[0].number')
+          PR=$(gh pr list -R adishm98/frontend-ee-testing --head "$BRANCH_NAME" --state open --json number -q '.[0].number')
           if [ -n "$PR" ]; then
             echo "Found ee-frontend PR: #$PR"
             gh pr merge -R adishm98/frontend-ee-testing "$PR" --merge --admin
