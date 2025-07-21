@@ -10,7 +10,9 @@ on:
 
 jobs:
   merge-submodules:
-    if: github.event.pull_request.merged == true
+    if: |
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.title, ' | Version ')
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.extract.outputs.version }}
@@ -63,6 +65,7 @@ jobs:
           echo "is_lts=$IS_LTS" >> $GITHUB_OUTPUT
 
   release:
+    if: contains(github.event.pull_request.title, ' | Version ')
     needs: [merge-submodules]
     runs-on: ubuntu-latest
     permissions:
