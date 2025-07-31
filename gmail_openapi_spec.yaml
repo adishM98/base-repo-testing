@@ -1335,8 +1335,25 @@ components:
         parts:
           type: array
           items:
-            $ref: '#/components/schemas/MessagePart'
-          description: The child MIME message parts
+            type: object
+            properties:
+              partId:
+                type: string
+                description: The immutable ID of the message part
+              mimeType:
+                type: string
+                description: The MIME type of the message part
+              filename:
+                type: string
+                description: The filename of the attachment
+              headers:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MessagePartHeader'
+                description: List of headers on this message part
+              body:
+                $ref: '#/components/schemas/MessagePartBody'
+          description: The child MIME message parts (simplified to avoid circular references)
 
     MessagePartHeader:
       type: object
@@ -1439,8 +1456,31 @@ components:
         messages:
           type: array
           items:
-            $ref: '#/components/schemas/Message'
-          description: The list of messages in the thread
+            type: object
+            properties:
+              id:
+                type: string
+                description: The immutable ID of the message
+              threadId:
+                type: string
+                description: The ID of the thread the message belongs to
+              labelIds:
+                type: array
+                items:
+                  type: string
+                description: List of IDs of labels applied to this message
+              snippet:
+                type: string
+                description: A short part of the message text
+              historyId:
+                type: string
+                format: uint64
+                description: The ID of the last history record that modified this message
+              internalDate:
+                type: string
+                format: int64
+                description: The internal message creation timestamp (epoch ms)
+          description: The list of messages in the thread (simplified to avoid deep nesting)
 
     ListThreadsResponse:
       type: object
@@ -1480,7 +1520,26 @@ components:
           type: string
           description: The immutable ID of the draft
         message:
-          $ref: '#/components/schemas/Message'
+          type: object
+          properties:
+            id:
+              type: string
+              description: The immutable ID of the message
+            threadId:
+              type: string
+              description: The ID of the thread the message belongs to
+            labelIds:
+              type: array
+              items:
+                type: string
+              description: List of IDs of labels applied to this message
+            snippet:
+              type: string
+              description: A short part of the message text
+            raw:
+              type: string
+              format: byte
+              description: The entire email message in RFC 2822 format and base64url encoded
 
     ListDraftsResponse:
       type: object
@@ -1569,8 +1628,15 @@ components:
         messages:
           type: array
           items:
-            $ref: '#/components/schemas/Message'
-          description: List of messages changed in this history record
+            type: object
+            properties:
+              id:
+                type: string
+              threadId:
+                type: string
+              snippet:
+                type: string
+          description: List of messages changed in this history record (simplified)
         messagesAdded:
           type: array
           items:
@@ -1596,19 +1662,40 @@ components:
       type: object
       properties:
         message:
-          $ref: '#/components/schemas/Message'
+          type: object
+          properties:
+            id:
+              type: string
+            threadId:
+              type: string
+            snippet:
+              type: string
 
     HistoryMessageDeleted:
       type: object
       properties:
         message:
-          $ref: '#/components/schemas/Message'
+          type: object
+          properties:
+            id:
+              type: string
+            threadId:
+              type: string
+            snippet:
+              type: string
 
     HistoryLabelAdded:
       type: object
       properties:
         message:
-          $ref: '#/components/schemas/Message'
+          type: object
+          properties:
+            id:
+              type: string
+            threadId:
+              type: string
+            snippet:
+              type: string
         labelIds:
           type: array
           items:
@@ -1619,7 +1706,14 @@ components:
       type: object
       properties:
         message:
-          $ref: '#/components/schemas/Message'
+          type: object
+          properties:
+            id:
+              type: string
+            threadId:
+              type: string
+            snippet:
+              type: string
         labelIds:
           type: array
           items:
